@@ -1,7 +1,11 @@
+import json
+import os
+
 import requests
 
 
 API_URL = "https://himalayas.app/jobs/api"
+SAVED_FILE = "saved_jobs.json"
 
 
 def get_jobs():
@@ -79,7 +83,6 @@ def display_jobs(jobs):
     print("\nMatching jobs:", len(jobs))
 
     for number, job in enumerate(jobs, start=1):
-
         title = job.get("title", "Unknown")
         company = job.get("companyName", "Unknown")
         location = job.get("location", "Remote")
@@ -98,12 +101,74 @@ def display_jobs(jobs):
     print("-" * 65)
 
 
+def load_saved_jobs():
+    if not os.path.exists(SAVED_FILE):
+        return []
+
+    try:
+        with open(SAVED_FILE, "r", encoding="utf-8") as file:
+            return json.load(file)
+
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def save_jobs(saved_jobs):
+    with open(SAVED_FILE, "w", encoding="utf-8") as file:
+        json.dump(saved_jobs, file, indent=4)
+
+
+def bookmark_job(job):
+    saved_jobs = load_saved_jobs()
+
+    job_title = job.get("title", "Unknown")
+    company = job.get("companyName", "Unknown")
+
+    for saved_job in saved_jobs:
+        if (
+            saved_job.get("title") == job_title
+            and saved_job.get("companyName") == company
+        ):
+            print("\nThis job is already saved.")
+            return
+
+    saved_jobs.append(job)
+    save_jobs(saved_jobs)
+
+    print("\n🔖 Job saved successfully!")
+
+
+def display_saved_jobs():
+    saved_jobs = load_saved_jobs()
+
+    if not saved_jobs:
+        print("\nNo saved jobs yet.")
+        return
+
+    print("\n" + "=" * 65)
+    print("                    SAVED JOBS")
+    print("=" * 65)
+
+    print("\nSaved jobs:", len(saved_jobs))
+
+    for number, job in enumerate(saved_jobs, start=1):
+        print("\n" + "-" * 65)
+        print("Saved Job #", number)
+        print("Role:     ", job.get("title", "Unknown"))
+        print("Company:  ", job.get("companyName", "Unknown"))
+        print("Location: ", job.get("location", "Remote"))
+        print(
+            "Apply:    ",
+            job.get("applicationLink", "Not available")
+        )
+
+    print("-" * 65)
+
+
 def main():
     print("=" * 65)
     print("              JOB / INTERNSHIP API TRACKER")
     print("=" * 65)
-
-    print("\nFetching latest job opportunities...")
 
     jobs = get_jobs()
 
@@ -113,22 +178,44 @@ def main():
 
     print("\nTotal jobs fetched:", len(jobs))
 
-    # Search by keyword
     keyword = input(
         "\nEnter job keyword (press Enter for all): "
     )
 
     jobs = search_jobs(jobs, keyword)
 
-    # Filter by location
     location = input(
         "Enter location (press Enter for all): "
     )
 
     jobs = filter_by_location(jobs, location)
 
-    # Display final results
     display_jobs(jobs)
+
+    if jobs:
+        choice = input(
+            "\nEnter job number to save "
+            "(press Enter to skip): "
+        )
+
+        if choice.strip():
+            try:
+                job_number = int(choice)
+
+                if 1 <= job_number <= len(jobs):
+                    bookmark_job(jobs[job_number - 1])
+                else:
+                    print("\nInvalid job number.")
+
+            except ValueError:
+                print("\nPlease enter a valid number.")
+
+    view_saved = input(
+        "\nView saved jobs? (y/n): "
+    ).lower().strip()
+
+    if view_saved == "y":
+        display_saved_jobs()
 
 
 if __name__ == "__main__":
